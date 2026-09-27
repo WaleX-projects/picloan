@@ -1,0 +1,65 @@
+services:
+  api:
+    build:
+      context: ./src/server
+      dockerfile: Dockerfile
+    container_name: pickloan-api
+
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      NOVA_API_KEY: ${NOVA_API_KEY}
+      NODE_ENV: ${NODE_ENV:-development}
+
+    volumes:
+      - ./src/server/app:/app/app
+      - ./src/server/alembic:/app/alembic
+
+    networks:
+      - pickloan-network
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: pickloan-db
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pickloan}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - pickloan-network
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  pickloan-network:
+    driver: bridge
